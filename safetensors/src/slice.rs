@@ -361,8 +361,12 @@ pub fn slice_byte_ranges(
                     (start, stop, step.get())
                 }
             };
-            if start >= dim || stop > dim {
-                let asked = if start >= dim {
+            let is_invalid = match slice {
+                TensorIndexer::Select(_) => start >= dim || stop > dim,
+                TensorIndexer::Narrow(_, _, _) => start > dim || stop > dim,
+            };
+            if is_invalid {
+                let asked = if start > dim || (start == dim && matches!(slice, TensorIndexer::Select(_))) {
                     start
                 } else {
                     stop.saturating_sub(1)
@@ -759,6 +763,52 @@ mod tests {
                 ],
             ),
             Err(InvalidSlice::TooManySlices)
+        );
+    }
+
+    #[test]
+    fn test_zero_length_dimension() {
+        let data: Vec<u8> = vec![];
+        let attn_0 = TensorView::new(Dtype::F32, vec![0, 3], &data).unwrap();
+
+        // [:] (Narrow unbounded on dim 0)
+        let mut iterator = SliceIterator::new(
+            &attn_0,
+            &[TensorIndexer::Narrow(Bound::Unbounded, Bound::Unbounded, NonZeroUsize::MIN)],
+        )
+        .unwrap();
+        assert_eq!(iterator.next(), None);
+        assert_eq!(iterator.newshape(), vec![0, 3]);
+
+        // [0:0] (Narrow 0 to 0 on dim 0)
+        let mut iterator = SliceIterator::new(
+            &attn_0,
+            &[TensorIndexer::Narrow(Bound::Included(0), Bound::Excluded(0), NonZeroUsize::MIN)],
+        )
+        .unwrap();
+        assert_eq!(iterator.next(), None);
+        assert_eq!(iterator.newshape(), vec![0, 3]);
+
+        // [:, 1:2] (dim 0 unbounded, dim 1 narrow)
+        let mut iterator = SliceIterator::new(
+            &attn_0,
+            &[
+                TensorIndexer::Narrow(Bound::Unbounded, Bound::Unbounded, NonZeroUsize::MIN),
+                TensorIndexer::Narrow(Bound::Included(1), Bound::Excluded(2), NonZeroUsize::MIN),
+            ],
+        )
+        .unwrap();
+        assert_eq!(iterator.next(), None);
+        assert_eq!(iterator.newshape(), vec![0, 1]);
+
+        // Integer indexing on dim 0 should still fail because dim=0 has no index 0
+        assert_eq!(
+            SliceIterator::new(&attn_0, &[TensorIndexer::Select(0)]),
+            Err(InvalidSlice::SliceOutOfRange {
+                asked: 0,
+                dim_index: 0,
+                dim_size: 0,
+            })
         );
     }
 }
