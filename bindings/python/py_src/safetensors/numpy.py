@@ -13,6 +13,9 @@ def _flatten(
     flattened = {}
     for k, v in tensor_dict.items():
         tensor = v
+        if not tensor.flags.c_contiguous:
+            tensor = tensor.copy(order="C")
+            keep_alive_buffer.append(tensor)
         if not _is_little_endian(tensor):
             tensor = tensor.byteswap(inplace=False)
             keep_alive_buffer.append(tensor)

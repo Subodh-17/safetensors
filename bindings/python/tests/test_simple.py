@@ -311,6 +311,27 @@ class ReadmeTestCase(unittest.TestCase):
             self.assertEqual(list(tensor.shape), [0, 5])
             torch.testing.assert_close(tensor, A[list()])
 
+    def test_numpy_non_contiguous(self):
+        A = np.arange(12, dtype=np.float32).reshape(3, 4)
+        tensors = {
+            "fortran": np.asfortranarray(A),
+            "strided": np.arange(24, dtype=np.float32).reshape(3, 8)[:, ::2],
+        }
+        filename = f"./non_contiguous_{threading.get_ident()}.safetensors"
+        save_file(tensors, filename)
+
+        # Now loading
+        with safe_open(filename, framework="np", device="cpu") as f:
+            fortran = f.get_tensor("fortran")
+            strided = f.get_tensor("strided")
+            self.assertEqual(list(fortran.shape), [3, 4])
+            self.assertEqual(fortran.dtype, np.float32)
+            self.assertTrue(np.array_equal(fortran, tensors["fortran"]))
+
+            self.assertEqual(list(strided.shape), [3, 4])
+            self.assertEqual(strided.dtype, np.float32)
+            self.assertTrue(np.array_equal(strided, tensors["strided"]))
+
     def test_numpy_slice(self):
         A = np.random.rand(10, 5)
         tensors = {
