@@ -350,8 +350,8 @@ fn parse_indexers(slices: &PyBound<'_, PyAny>, shape: &[usize]) -> PyResult<Vec<
                 dim_idx += 1;
             }
         } else if let Ok(slice) = it.cast::<PySlice>() {
-            let start: Option<usize> = slice.getattr(intern!(py, "start"))?.extract()?;
-            let stop: Option<usize> = slice.getattr(intern!(py, "stop"))?.extract()?;
+            let start: Option<isize> = slice.getattr(intern!(py, "start"))?.extract()?;
+            let stop: Option<isize> = slice.getattr(intern!(py, "stop"))?.extract()?;
             let step_raw: i64 = slice
                 .getattr(intern!(py, "step"))?
                 .extract::<Option<i64>>()?
@@ -364,12 +364,21 @@ fn parse_indexers(slices: &PyBound<'_, PyAny>, shape: &[usize]) -> PyResult<Vec<
                         "Slice step must be a positive integer, got {step_raw}"
                     ))
                 })?;
+            let dim = shape.get(dim_idx).copied().unwrap_or(0);
             let start_b = match start {
-                Some(s) => Bound::Included(s),
+                Some(s) if s < 0 => {
+                    let s_resolved = dim.checked_add_signed(s).unwrap_or(0);
+                    Bound::Included(s_resolved)
+                }
+                Some(s) => Bound::Included(s as usize),
                 None => Bound::Unbounded,
             };
             let stop_b = match stop {
-                Some(s) => Bound::Excluded(s),
+                Some(s) if s < 0 => {
+                    let s_resolved = dim.checked_add_signed(s).unwrap_or(0);
+                    Bound::Excluded(s_resolved)
+                }
+                Some(s) => Bound::Excluded(s as usize),
                 None => Bound::Unbounded,
             };
             indexers.push(TensorIndexer::Narrow(start_b, stop_b, step));

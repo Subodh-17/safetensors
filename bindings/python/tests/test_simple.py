@@ -311,6 +311,26 @@ class ReadmeTestCase(unittest.TestCase):
             self.assertEqual(list(tensor.shape), [0, 5])
             torch.testing.assert_close(tensor, A[list()])
 
+            tensor = slice_[-2:]
+            self.assertEqual(list(tensor.shape), [2, 5])
+            torch.testing.assert_close(tensor, A[-2:])
+
+            tensor = slice_[:-1]
+            self.assertEqual(list(tensor.shape), [9, 5])
+            torch.testing.assert_close(tensor, A[:-1])
+
+            tensor = slice_[1:-1]
+            self.assertEqual(list(tensor.shape), [8, 5])
+            torch.testing.assert_close(tensor, A[1:-1])
+
+            tensor = slice_[:, -3:]
+            self.assertEqual(list(tensor.shape), [10, 3])
+            torch.testing.assert_close(tensor, A[:, -3:])
+
+            tensor = slice_[-100:]
+            self.assertEqual(list(tensor.shape), [10, 5])
+            torch.testing.assert_close(tensor, A[-100:])
+
     def test_numpy_slice(self):
         A = np.random.rand(10, 5)
         tensors = {
@@ -362,6 +382,25 @@ class ReadmeTestCase(unittest.TestCase):
             self.assertEqual(list(tensor.shape), [0, 5])
             self.assertTrue(np.allclose(tensor, A[list()]))
 
+            tensor = slice_[-2:]
+            self.assertEqual(list(tensor.shape), [2, 5])
+            self.assertTrue(np.allclose(tensor, A[-2:]))
+
+            tensor = slice_[:-1]
+            self.assertEqual(list(tensor.shape), [9, 5])
+            self.assertTrue(np.allclose(tensor, A[:-1]))
+
+            tensor = slice_[1:-1]
+            self.assertEqual(list(tensor.shape), [8, 5])
+            self.assertTrue(np.allclose(tensor, A[1:-1]))
+
+            tensor = slice_[:, -3:]
+            self.assertEqual(list(tensor.shape), [10, 3])
+            self.assertTrue(np.allclose(tensor, A[:, -3:]))
+
+            tensor = slice_[-100:]
+            self.assertEqual(list(tensor.shape), [10, 5])
+            self.assertTrue(np.allclose(tensor, A[-100:]))
             with self.assertRaises(SafetensorError) as cm:
                 tensor = slice_[2:, -6]
             self.assertEqual(
